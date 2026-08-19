@@ -8,8 +8,8 @@ import {
   VoiceActionType,
 } from '../../contexts/VoiceContext';
 import { VideoLayoutMode } from '../../types/videoLayout';
-import { setCachedItem } from '../../utils/storage';
-import { defaultPlacement } from '../../utils/pipPosition';
+import { getCachedItem, setCachedItem } from '../../utils/storage';
+import { defaultPlacement, type PipPlacement } from '../../utils/pipPosition';
 
 function TestConsumer() {
   const { stageMounted, showVideoTiles, pipCollapsed, isConnected, layoutMode, pinnedTileId, spotlightTileId } = useVoice();
@@ -215,6 +215,96 @@ describe('VoiceContext reducer', () => {
     );
 
     expect(screen.getByTestId('pip-collapsed')).toHaveTextContent('false');
+  });
+
+  describe('SetPipCollapsed persistence (VoiceProvider mirrors pipCollapsed to disk directly)', () => {
+    // FloatCard is never mounted in this describe block — the collapsed
+    // write used to live only in FloatCard's own effect, so it was lost
+    // whenever SetPipCollapsed was dispatched while FloatCard was suppressed
+    // (e.g. the embedded stage is mounted, or the VoiceBottomBar settings
+    // menu toggling the pill directly). It now lives in VoiceProvider, which
+    // is always mounted alongside voice state.
+    it('persists collapsed:true into semaphore_pip_placement with no prior record', async () => {
+      const user = userEvent.setup();
+      render(
+        <VoiceProvider>
+          <TestConsumer />
+        </VoiceProvider>,
+      );
+
+      expect(getCachedItem('semaphore_pip_placement')).toBeNull();
+
+      await user.click(screen.getByText('Collapse Pip'));
+
+      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(true);
+    });
+
+    it('persists collapsed:false back after collapsed:true', async () => {
+      const user = userEvent.setup();
+      render(
+        <VoiceProvider>
+          <TestConsumer />
+        </VoiceProvider>,
+      );
+
+      await user.click(screen.getByText('Collapse Pip'));
+      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(true);
+
+      await user.click(screen.getByText('Expand Pip'));
+      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(false);
+    });
+
+    it('merges onto an existing persisted placement without clobbering anchor/size/docked', async () => {
+      setCachedItem('semaphore_pip_placement', {
+        ...defaultPlacement(),
+        anchor: 'top-left',
+        docked: false,
+        size: { width: 500, height: 400 },
+      });
+
+      const user = userEvent.setup();
+      render(
+        <VoiceProvider>
+          <TestConsumer />
+        </VoiceProvider>,
+      );
+
+      await user.click(screen.getByText('Collapse Pip'));
+
+      const saved = getCachedItem<PipPlacement>('semaphore_pip_placement');
+      expect(saved).toMatchObject({
+        anchor: 'top-left',
+        docked: false,
+        size: { width: 500, height: 400 },
+        collapsed: true,
+      });
+    });
+
+    it('does not write to storage on mount when nothing changed', () => {
+      render(
+        <VoiceProvider>
+          <TestConsumer />
+        </VoiceProvider>,
+      );
+
+      expect(getCachedItem('semaphore_pip_placement')).toBeNull();
+    });
+
+    it('persists the change even while stageMounted is true (FloatCard suppressed on desktop)', async () => {
+      const user = userEvent.setup();
+      render(
+        <VoiceProvider>
+          <TestConsumer />
+        </VoiceProvider>,
+      );
+
+      await user.click(screen.getByText('Mount Stage'));
+      expect(screen.getByTestId('stage-mounted')).toHaveTextContent('true');
+
+      await user.click(screen.getByText('Collapse Pip'));
+
+      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(true);
+    });
   });
 
   it('layoutMode/pinnedTileId/spotlightTileId default to Grid/null/null', () => {

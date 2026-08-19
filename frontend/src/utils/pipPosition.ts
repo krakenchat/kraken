@@ -45,6 +45,31 @@ export interface DockZoneRect {
 export const DOCK_MARGIN = 16;
 export const EDGE_PADDING = 8;
 
+const ANCHORS: readonly PipAnchor[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * Type guard for a persisted PipPlacement (e.g. from localStorage). Uses
+ * Number.isFinite rather than typeof === 'number' — `typeof NaN` and
+ * `typeof Infinity` are both 'number', so a corrupted record with those
+ * values would otherwise pass and render the card off-screen with no way
+ * to recover it.
+ */
+export function isValidPlacement(value: unknown): value is PipPlacement {
+  if (!value || typeof value !== 'object') return false;
+  const p = value as Record<string, unknown>;
+  const offset = p.offset as Record<string, unknown> | undefined;
+  const size = p.size as Record<string, unknown> | undefined;
+  return (
+    typeof p.anchor === 'string' && (ANCHORS as string[]).includes(p.anchor) &&
+    !!offset && isFiniteNumber(offset.x) && isFiniteNumber(offset.y) &&
+    !!size && isFiniteNumber(size.width) && isFiniteNumber(size.height) &&
+    typeof p.docked === 'boolean' &&
+    typeof p.collapsed === 'boolean'
+  );
+}
+
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 240;
 const DEFAULT_WIDTH = 480;

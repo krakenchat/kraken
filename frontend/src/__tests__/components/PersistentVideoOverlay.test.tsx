@@ -3,7 +3,7 @@ import { screen, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { PersistentVideoOverlay } from '../../components/Voice/PersistentVideoOverlay';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
-import { getCachedItem } from '../../utils/storage';
+import { getCachedItem, setCachedItem } from '../../utils/storage';
 import { toAbsolute, defaultPlacement, dockZoneRects, EDGE_PADDING, type PipPlacement } from '../../utils/pipPosition';
 import { VOICE_BAR_HEIGHT } from '../../constants/layout';
 
@@ -84,6 +84,7 @@ const defaultConnectionState: {
   dmGroupName: string | null;
   stageMounted: boolean;
   pipCollapsed: boolean;
+  isServerMuted: boolean;
   room: typeof mockRoom;
 } = {
   isConnected: true,
@@ -95,6 +96,7 @@ const defaultConnectionState: {
   dmGroupName: null,
   stageMounted: false,
   pipCollapsed: false,
+  isServerMuted: false,
   room: mockRoom,
 };
 let mockConnectionState = { ...defaultConnectionState };
@@ -126,6 +128,17 @@ vi.mock('../../hooks/useLocalMediaState', () => ({
 
 vi.mock('../../contexts/ReplayBufferContext', () => ({
   useReplayBufferState: vi.fn(() => ({ isReplayBufferActive: false })),
+}));
+
+vi.mock('../../hooks/usePushToTalk', () => ({
+  usePushToTalk: vi.fn(() => ({
+    isActive: false,
+    isKeyHeld: false,
+    currentKeyDisplay: 'Space',
+    inputMode: 'voice_activity',
+    pttPress: vi.fn(),
+    pttRelease: vi.fn(),
+  })),
 }));
 
 // Selection defaults to the avatar fallback — camera/screen kinds are
@@ -164,6 +177,7 @@ vi.mock('../../components/Common/UserAvatar', () => ({
 const { useVoice } = await import('../../contexts/VoiceContext');
 const { useResponsive } = await import('../../hooks/useResponsive');
 const { useVoiceConnection } = await import('../../hooks/useVoiceConnection');
+const { usePushToTalk } = await import('../../hooks/usePushToTalk');
 
 describe('PersistentVideoOverlay', () => {
   beforeEach(() => {
@@ -177,6 +191,14 @@ describe('PersistentVideoOverlay', () => {
     vi.mocked(useVoiceConnection).mockReturnValue({
       state: mockConnectionState,
       actions: mockActions,
+    } as never);
+    vi.mocked(usePushToTalk).mockReturnValue({
+      isActive: false,
+      isKeyHeld: false,
+      currentKeyDisplay: 'Space',
+      inputMode: 'voice_activity',
+      pttPress: vi.fn(),
+      pttRelease: vi.fn(),
     } as never);
     vi.mocked(useResponsive).mockReturnValue({
       isMobile: false,
@@ -271,6 +293,44 @@ describe('PersistentVideoOverlay', () => {
       expect(screen.getByText('General Voice')).toBeInTheDocument();
     });
 
+    it('falls back to defaultPlacement() when the persisted placement has a NaN offset, instead of rendering off-screen at NaN', () => {
+      // typeof NaN === 'number', so a naive numeric type check on a corrupted
+      // localStorage record would pass and render the card at `left: NaN`
+      // (invisible, with no way for the user to recover it).
+      setCachedItem('semaphore_pip_placement', {
+        anchor: 'bottom-right',
+        offset: { x: NaN, y: 0 },
+        size: { width: 480, height: 360 },
+        docked: false,
+        collapsed: false,
+      });
+
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const vp = { width: window.innerWidth, height: window.innerHeight, bottomInset: VOICE_BAR_HEIGHT };
+      const expectedAbs = toAbsolute(defaultPlacement(), vp);
+      const dragGrabOffset = { x: 5, y: 5 };
+      const pointerDownAt = { x: expectedAbs.x + dragGrabOffset.x, y: expectedAbs.y + dragGrabOffset.y };
+      const pointerMoveTo = { x: pointerDownAt.x + 20, y: pointerDownAt.y + 20 };
+
+      // Drag from where defaultPlacement() would put the header and confirm
+      // the drop lands at a finite position — if the corrupted NaN record
+      // had been used instead, every position computed from it (including
+      // this drag) would also come out NaN.
+      const header = screen.getByTestId('DragIndicatorIcon');
+      fireEvent.pointerDown(header, { pointerId: 1, clientX: pointerDownAt.x, clientY: pointerDownAt.y });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: pointerMoveTo.x, clientY: pointerMoveTo.y }));
+      });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: pointerMoveTo.x, clientY: pointerMoveTo.y }));
+      });
+
+      const placement = getCachedItem<PipPlacement>('semaphore_pip_placement');
+      expect(Number.isFinite(placement!.offset.x)).toBe(true);
+      expect(Number.isFinite(placement!.offset.y)).toBe(true);
+    });
+
     it('no longer has a close button (replaced by collapse-to-pill)', () => {
       renderWithProviders(<PersistentVideoOverlay />);
 
@@ -347,7 +407,7 @@ describe('PersistentVideoOverlay', () => {
       expect(screen.getByText('3')).toBeInTheDocument();
     });
 
-    it('collapse control dispatches SetPipCollapsed(true); context flipping it shows the pill and persists it', async () => {
+    it('collapse control dispatches SetPipCollapsed(true); context flipping it shows the pill', async () => {
       const { user, rerender } = renderWithProviders(<PersistentVideoOverlay />);
 
       expect(screen.queryByTestId('float-card-pill')).not.toBeInTheDocument();
@@ -359,6 +419,9 @@ describe('PersistentVideoOverlay', () => {
 
       // Collapsed/expanded is driven by context (state.pipCollapsed), not local
       // component state — simulate the context updating in response to the dispatch.
+      // (Persisting collapsed to semaphore_pip_placement is VoiceProvider's job —
+      // see contexts/VoiceContext.test.tsx — not exercised by this mocked-context
+      // test, which isolates FloatCard's own rendering/dispatch wiring.)
       mockConnectionState = { ...mockConnectionState, pipCollapsed: true };
       vi.mocked(useVoiceConnection).mockReturnValue({
         state: mockConnectionState,
@@ -367,9 +430,6 @@ describe('PersistentVideoOverlay', () => {
       rerender(<PersistentVideoOverlay />);
 
       expect(screen.getByTestId('float-card-pill')).toBeInTheDocument();
-      // FloatCard mirrors the context-driven collapsed flag back into the
-      // persisted placement so semaphore_pip_placement stays the on-disk record.
-      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')?.collapsed).toBe(true);
     });
 
     it('renders VideoTile for a camera selection', () => {
@@ -471,6 +531,111 @@ describe('PersistentVideoOverlay', () => {
       const placement = getCachedItem<PipPlacement>('semaphore_pip_placement');
       expect(placement?.docked).toBe(false);
       expect(toAbsolute(placement!, vp)).toEqual(expectedDropPos);
+    });
+
+    it('a plain click on the header (pointerdown+pointerup with no movement) does not dock and shows no dock zones', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const before = getCachedItem<PipPlacement>('semaphore_pip_placement');
+      const vp = { width: window.innerWidth, height: window.innerHeight, bottomInset: VOICE_BAR_HEIGHT };
+      // Pick a point that overlaps a corner dock zone, so a pre-threshold-fix
+      // implementation would snap-dock on release.
+      const zone = dockZoneRects(vp).find((z) => z.anchor === 'bottom-right')!;
+      const clickAt = { x: zone.x + 10, y: zone.y + 10 };
+
+      const header = screen.getByTestId('DragIndicatorIcon');
+      fireEvent.pointerDown(header, { pointerId: 1, clientX: clickAt.x, clientY: clickAt.y });
+
+      expect(screen.queryByTestId('dock-zone-bottom-right')).not.toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: clickAt.x, clientY: clickAt.y }));
+      });
+
+      expect(screen.queryByTestId('dock-zone-bottom-right')).not.toBeInTheDocument();
+      expect(getCachedItem<PipPlacement>('semaphore_pip_placement')).toEqual(before);
+    });
+
+    it('movement below the drag threshold does not start a drag, but continuing past it does', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const header = screen.getByTestId('DragIndicatorIcon');
+      fireEvent.pointerDown(header, { pointerId: 1, clientX: 500, clientY: 500 });
+
+      act(() => {
+        // ~2.2px of movement — below the 5px threshold.
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 502, clientY: 501 }));
+      });
+      expect(screen.queryByTestId('dock-zone-bottom-right')).not.toBeInTheDocument();
+
+      act(() => {
+        // Now comfortably past the threshold.
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 530, clientY: 530 }));
+      });
+      expect(screen.getByTestId('dock-zone-bottom-right')).toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 530, clientY: 530 }));
+      });
+    });
+
+    it('does not render dock zones before any drag gesture starts', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      expect(screen.queryByTestId('dock-zone-bottom-right')).not.toBeInTheDocument();
+    });
+
+    it('keeps dock zones mounted through pointerup so the exit fade can play, instead of vanishing instantly', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const header = screen.getByTestId('DragIndicatorIcon');
+      fireEvent.pointerDown(header, { pointerId: 1, clientX: 500, clientY: 500 });
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 530, clientY: 530 }));
+      });
+      expect(screen.getByTestId('dock-zone-bottom-right')).toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 530, clientY: 530 }));
+      });
+
+      // Fade's unmountOnExit keeps the node mounted until the exit
+      // transition finishes — it must still be present right after pointerup,
+      // not torn out of the DOM synchronously.
+      expect(screen.getByTestId('dock-zone-bottom-right')).toBeInTheDocument();
+    });
+
+    it('float card mic button does not toggle mute while push-to-talk is active', async () => {
+      vi.mocked(usePushToTalk).mockReturnValue({
+        isActive: true,
+        isKeyHeld: false,
+        currentKeyDisplay: 'Space',
+        inputMode: 'push_to_talk',
+        pttPress: vi.fn(),
+        pttRelease: vi.fn(),
+      } as never);
+
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      const micIcon = screen.getByTestId('MicIcon');
+      await user.click(micIcon.closest('button')!);
+
+      expect(mockActions.toggleMute).not.toHaveBeenCalled();
+    });
+
+    it('float card mic button does not toggle mute while server-muted', async () => {
+      mockConnectionState = { ...defaultConnectionState, isServerMuted: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: mockConnectionState,
+        actions: mockActions,
+      } as never);
+
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      const micIcon = screen.getByTestId('MicIcon');
+      await user.click(micIcon.closest('button')!);
+
+      expect(mockActions.toggleMute).not.toHaveBeenCalled();
     });
   });
 });

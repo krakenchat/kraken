@@ -8,6 +8,7 @@ import {
   dockZoneRects,
   hitTestDockZone,
   defaultPlacement,
+  isValidPlacement,
   type PipPlacement,
   type Viewport,
 } from '../../utils/pipPosition';
@@ -243,6 +244,51 @@ describe('pipPosition', () => {
     it('returns null when the point is outside every zone', () => {
       const center = { x: vp.width / 2, y: vp.height / 2 };
       expect(hitTestDockZone(center, vp)).toBeNull();
+    });
+  });
+
+  describe('isValidPlacement', () => {
+    const validPlacement: PipPlacement = {
+      anchor: 'top-left',
+      offset: { x: 10, y: 20 },
+      size,
+      docked: false,
+      collapsed: false,
+    };
+
+    it('accepts a well-formed placement', () => {
+      expect(isValidPlacement(validPlacement)).toBe(true);
+    });
+
+    it.each(['offset', 'size'] as const)(
+      'rejects NaN in %s (typeof NaN === "number", so a plain typeof check would wrongly pass)',
+      (field) => {
+        const key = field === 'offset' ? 'x' : 'width';
+        const corrupted = { ...validPlacement, [field]: { ...validPlacement[field], [key]: NaN } };
+        expect(isValidPlacement(corrupted)).toBe(false);
+      }
+    );
+
+    it.each(['offset', 'size'] as const)('rejects Infinity in %s', (field) => {
+      const key = field === 'offset' ? 'y' : 'height';
+      const corrupted = { ...validPlacement, [field]: { ...validPlacement[field], [key]: Infinity } };
+      expect(isValidPlacement(corrupted)).toBe(false);
+    });
+
+    it('rejects a null/undefined/primitive value', () => {
+      expect(isValidPlacement(null)).toBe(false);
+      expect(isValidPlacement(undefined)).toBe(false);
+      expect(isValidPlacement('bottom-right')).toBe(false);
+      expect(isValidPlacement(42)).toBe(false);
+    });
+
+    it('rejects an unknown anchor', () => {
+      expect(isValidPlacement({ ...validPlacement, anchor: 'middle' })).toBe(false);
+    });
+
+    it('rejects a placement missing docked/collapsed', () => {
+      const { docked: _docked, ...withoutDocked } = validPlacement;
+      expect(isValidPlacement(withoutDocked)).toBe(false);
     });
   });
 });

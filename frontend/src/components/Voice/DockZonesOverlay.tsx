@@ -6,20 +6,25 @@ import { dockZoneRects, hitTestDockZone, type Point, type Viewport } from '../..
 interface DockZonesOverlayProps {
   viewport: Viewport;
   pointerPosition: Point | null;
+  isDragging: boolean;
 }
 
 /**
  * Four translucent corner targets shown while the FloatCard header is being
- * dragged, so the user can see where dropping will dock the card. Mounted by
- * FloatCard only for the duration of the drag gesture.
+ * dragged, so the user can see where dropping will dock the card. FloatCard
+ * keeps this component mounted at all times (not just during a drag) so
+ * Fade's exit transition — `unmountOnExit` removes it from the DOM only
+ * after the fade-out finishes — can actually play; gating the mount on
+ * `isDragging` in the parent would tear the whole thing down instantly on
+ * pointerup instead.
  */
-export const DockZonesOverlay: React.FC<DockZonesOverlayProps> = ({ viewport, pointerPosition }) => {
+export const DockZonesOverlay: React.FC<DockZonesOverlayProps> = ({ viewport, pointerPosition, isDragging }) => {
   const theme = useTheme();
   const zones = dockZoneRects(viewport);
   const activeZone = pointerPosition ? hitTestDockZone(pointerPosition, viewport) : null;
 
   return (
-    <Fade in appear>
+    <Fade in={isDragging} mountOnEnter unmountOnExit>
       <Box
         sx={{
           position: 'fixed',

@@ -22,13 +22,13 @@ import { useNavigate } from 'react-router-dom';
 import { useVoiceConnection } from '../../hooks/useVoiceConnection';
 import { useLocalMediaState } from '../../hooks/useLocalMediaState';
 import { useFloatTileSelection } from '../../hooks/useFloatTileSelection';
+import { usePushToTalk } from '../../hooks/usePushToTalk';
 import { useReplayBufferState } from '../../contexts/ReplayBufferContext';
 import { VoiceSessionType } from '../../contexts/VoiceContext';
 import { getFloatNavigationTarget } from '../../utils/voiceNavigation';
 import { getCachedItem, setCachedItem } from '../../utils/storage';
 import { VOICE_BAR_HEIGHT } from '../../constants/layout';
 import {
-  PipAnchor,
   PipPlacement,
   Point,
   Size,
@@ -38,6 +38,7 @@ import {
   clampSizeToViewport,
   hitTestDockZone,
   defaultPlacement,
+  isValidPlacement,
 } from '../../utils/pipPosition';
 import UserAvatar from '../Common/UserAvatar';
 import VideoTile from './VideoTile';
@@ -51,21 +52,10 @@ const HEADER_HEIGHT = 36;
 // but EDGE_PADDING clamping keeps it fully on-screen regardless.
 const PILL_SIZE: Size = { width: 200, height: 52 };
 
-const ANCHORS: readonly PipAnchor[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-
-function isValidPlacement(value: unknown): value is PipPlacement {
-  if (!value || typeof value !== 'object') return false;
-  const p = value as Record<string, unknown>;
-  const offset = p.offset as Record<string, unknown> | undefined;
-  const size = p.size as Record<string, unknown> | undefined;
-  return (
-    typeof p.anchor === 'string' && (ANCHORS as string[]).includes(p.anchor) &&
-    !!offset && typeof offset.x === 'number' && typeof offset.y === 'number' &&
-    !!size && typeof size.width === 'number' && typeof size.height === 'number' &&
-    typeof p.docked === 'boolean' &&
-    typeof p.collapsed === 'boolean'
-  );
-}
+// Pointer movement (px) from pointerdown before a gesture on the header
+// becomes a drag. Below this, a pointerdown+pointerup is treated as a plain
+// click — no dock zones shown, no placement change.
+const DRAG_THRESHOLD_PX = 5;
 
 function loadInitialPlacement(): PipPlacement {
   const saved = getCachedItem<unknown>(PIP_PLACEMENT_KEY);
@@ -98,6 +88,12 @@ export const FloatCard: React.FC = () => {
   const { state, actions } = useVoiceConnection();
   const { isCameraEnabled, isMicrophoneEnabled } = useLocalMediaState();
   const { isReplayBufferActive } = useReplayBufferState();
+  // Mirrors VoiceBottomBar's mic-button guard: while push-to-talk is active
+  // (or the server has muted this user) a tap shouldn't toggle the mic —
+  // PTT owns the mic state via hold-to-talk, and a stray unmute here would
+  // persist outside the PTT gesture.
+  const { isActive: isPTTActive } = usePushToTalk();
+  const micGuarded = isPTTActive || state.isServerMuted;
   const selection = useFloatTileSelection();
   const [isCardHovered, setIsCardHovered] = useState(false);
 
@@ -113,12 +109,26 @@ export const FloatCard: React.FC = () => {
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
   // The pointer that started the active drag/resize. On touch, a second
   // finger produces its own pointer events on the window listeners — without
   // this filter it would teleport the overlay or end the gesture.
   const activePointerIdRef = useRef<number | null>(null);
+
+  // Drag-only bookkeeping kept in refs (not state) so handleDragMove/
+  // handleDragEnd have stable identities during the gesture — otherwise the
+  // window listener effect below would tear down and re-subscribe three
+  // listeners on every single pointermove.
+  const dragStartClientRef = useRef<Point | null>(null);
+  const dragOffsetRef = useRef<Point>({ x: 0, y: 0 });
+  const dragPosRef = useRef<Point | null>(null);
+  // A pointerdown "arms" the gesture (isPointerDown), but it only becomes a
+  // real drag — dock zones shown, cursor changes, card follows the pointer —
+  // once movement exceeds DRAG_THRESHOLD_PX. Below that, pointerdown+pointerup
+  // is a plain click on the header (e.g. to focus/select) and leaves
+  // placement untouched.
+  const hasCrossedDragThresholdRef = useRef(false);
+  const [isPointerDown, setIsPointerDown] = useState(false);
 
   const pipRef = useRef<HTMLDivElement>(null);
 
@@ -145,15 +155,14 @@ export const FloatCard: React.FC = () => {
 
   // Context (state.pipCollapsed) is the single source of truth for
   // collapsed/expanded — it can change from outside this component (e.g. the
-  // VoiceBottomBar settings menu). Mirror it into the persisted placement so
-  // semaphore_pip_placement stays the one on-disk record of the pill state.
+  // VoiceBottomBar settings menu, or auto-reveal while this component isn't
+  // even mounted). Keep the local placement's collapsed field in sync so
+  // this component's own writes (resize, drag, viewport clamp) don't clobber
+  // it with a stale value — persistence itself is handled by a
+  // provider-level effect in VoiceContext so it applies even when FloatCard
+  // isn't mounted (e.g. the embedded stage is showing).
   useEffect(() => {
-    setPlacement(prev => {
-      if (prev.collapsed === state.pipCollapsed) return prev;
-      const next = { ...prev, collapsed: state.pipCollapsed };
-      setCachedItem(PIP_PLACEMENT_KEY, next);
-      return next;
-    });
+    setPlacement(prev => (prev.collapsed === state.pipCollapsed ? prev : { ...prev, collapsed: state.pipCollapsed }));
   }, [state.pipCollapsed]);
 
   useEffect(() => {
@@ -161,32 +170,55 @@ export const FloatCard: React.FC = () => {
     return () => window.removeEventListener('resize', recomputeViewport);
   }, [recomputeViewport]);
 
-  // Drag handlers
+  // Drag handlers. handleDragStart only "arms" the gesture (isPointerDown) —
+  // it doesn't show dock zones or move the card yet. handleDragMove promotes
+  // it to a real drag (isDragging) the first time movement crosses
+  // DRAG_THRESHOLD_PX; below that, releasing the pointer is a no-op click.
   const handleDragStart = useCallback((e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('.pip-controls')) return;
     if (activePointerIdRef.current !== null) return;
     e.preventDefault();
     activePointerIdRef.current = e.pointerId;
+    dragStartClientRef.current = { x: e.clientX, y: e.clientY };
+    hasCrossedDragThresholdRef.current = false;
     const abs = toAbsolute(placement, viewport);
-    setDragOffset({ x: e.clientX - abs.x, y: e.clientY - abs.y });
-    setDragPos(abs);
-    setPointerPos({ x: e.clientX, y: e.clientY });
-    setIsDragging(true);
+    dragOffsetRef.current = { x: e.clientX - abs.x, y: e.clientY - abs.y };
+    setIsPointerDown(true);
   }, [placement, viewport]);
 
+  // Reads bookkeeping from refs only, so this callback's identity never
+  // changes — the window listener effect below doesn't need to re-subscribe
+  // on every pointermove.
   const handleDragMove = useCallback((e: PointerEvent) => {
     if (e.pointerId !== activePointerIdRef.current) return;
-    setDragPos({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+    if (!hasCrossedDragThresholdRef.current) {
+      const start = dragStartClientRef.current;
+      if (!start) return;
+      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+      if (moved < DRAG_THRESHOLD_PX) return;
+      hasCrossedDragThresholdRef.current = true;
+      setIsDragging(true);
+    }
+    const offset = dragOffsetRef.current;
+    const nextPos = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+    dragPosRef.current = nextPos;
+    setDragPos(nextPos);
     setPointerPos({ x: e.clientX, y: e.clientY });
-  }, [dragOffset]);
+  }, []);
 
   const handleDragEnd = useCallback((e: PointerEvent) => {
     if (e.pointerId !== activePointerIdRef.current) return;
     activePointerIdRef.current = null;
-    if (!isDragging) return;
+    setIsPointerDown(false);
+    const wasDragging = hasCrossedDragThresholdRef.current;
+    hasCrossedDragThresholdRef.current = false;
+    dragStartClientRef.current = null;
+    // Never crossed the threshold — a plain click. Nothing moved, nothing to
+    // persist, and isDragging was never set so there's no state to unwind.
+    if (!wasDragging) return;
     setIsDragging(false);
     setPointerPos(null);
-    const dropPos = dragPos;
+    const dropPos = dragPosRef.current;
+    dragPosRef.current = null;
     setDragPos(null);
     if (!dropPos) return;
     // Dock decision is made off the pointer's drop location, not the card's
@@ -197,7 +229,7 @@ export const FloatCard: React.FC = () => {
       : { ...placement, ...fromAbsolute(dropPos, placement.size, viewport), docked: false };
     setPlacement(nextPlacement);
     setCachedItem(PIP_PLACEMENT_KEY, nextPlacement);
-  }, [isDragging, dragPos, placement, viewport]);
+  }, [placement, viewport]);
 
   // Resize handlers
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
@@ -246,7 +278,10 @@ export const FloatCard: React.FC = () => {
   // Global pointer event listeners for drag/resize (pointer events unify mouse
   // and touch, so this works for touch tablets as well as mouse users)
   useEffect(() => {
-    if (isDragging) {
+    // Listeners attach for the whole pointerdown->pointerup span (not just
+    // once isDragging flips true) so movement below DRAG_THRESHOLD_PX can
+    // still be observed and promoted into a drag.
+    if (isPointerDown) {
       window.addEventListener('pointermove', handleDragMove);
       window.addEventListener('pointerup', handleDragEnd);
       // Touch can end with pointercancel (OS gesture / scroll takeover);
@@ -258,7 +293,7 @@ export const FloatCard: React.FC = () => {
         window.removeEventListener('pointercancel', handleDragEnd);
       };
     }
-  }, [isDragging, handleDragMove, handleDragEnd]);
+  }, [isPointerDown, handleDragMove, handleDragEnd]);
 
   useEffect(() => {
     if (isResizing) {
@@ -274,7 +309,7 @@ export const FloatCard: React.FC = () => {
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   // Toggle collapse (card <-> pill). Source of truth is context
-  // (state.pipCollapsed); the effect above persists the change.
+  // (state.pipCollapsed); VoiceProvider persists the change.
   const toggleCollapsed = useCallback(() => {
     actions.setPipCollapsed(!state.pipCollapsed);
   }, [actions, state.pipCollapsed]);
@@ -349,7 +384,9 @@ export const FloatCard: React.FC = () => {
 
   return (
     <>
-      {isDragging && <DockZonesOverlay viewport={viewport} pointerPosition={pointerPos} />}
+      {/* Always mounted (not gated on isDragging) so its Fade can play the
+          exit transition on drag end instead of being torn out instantly. */}
+      <DockZonesOverlay viewport={viewport} pointerPosition={pointerPos} isDragging={isDragging} />
       <Paper
         ref={pipRef}
         elevation={8}
@@ -465,13 +502,14 @@ export const FloatCard: React.FC = () => {
               },
             }}
           >
-            <Tooltip title={isMicrophoneEnabled ? 'Mute' : 'Unmute'}>
+            <Tooltip title={isPTTActive ? 'Push-to-talk active' : isMicrophoneEnabled ? 'Mute' : 'Unmute'}>
               <IconButton
                 size="small"
-                onClick={actions.toggleMute}
+                onClick={micGuarded ? undefined : actions.toggleMute}
                 sx={{
                   backgroundColor: alpha(theme.palette.background.paper, 0.7),
                   color: !isMicrophoneEnabled ? theme.palette.error.main : theme.palette.text.primary,
+                  cursor: micGuarded ? 'default' : 'pointer',
                 }}
               >
                 {isMicrophoneEnabled ? <Mic fontSize="small" /> : <MicOff fontSize="small" />}

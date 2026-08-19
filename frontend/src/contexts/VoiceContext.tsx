@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useRef, useEffect, useMemo } from "react";
 import { VideoLayoutMode } from "../types/videoLayout";
-import { getCachedItem } from "../utils/storage";
+import { getCachedItem, setCachedItem } from "../utils/storage";
+import { defaultPlacement } from "../utils/pipPosition";
 
 export enum VoiceSessionType {
   Channel = 'channel',
@@ -270,10 +271,28 @@ function initVoiceState(base: VoiceState): VoiceState {
 export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(voiceReducer, initialState, initVoiceState);
   const stateRef = useRef(state);
+  // Tracks the last-persisted value so the mirror effect below only writes
+  // on an actual change, never on mount (initVoiceState already loaded it).
+  const persistedCollapsedRef = useRef(state.pipCollapsed);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // pipCollapsed can change while FloatCard isn't mounted at all — the
+  // VoiceBottomBar settings menu dispatches SetPipCollapsed directly, and
+  // useTrackSubscription's auto-reveal does too — so FloatCard's own mount
+  // lifecycle can't be the thing that persists it. Do it here instead, at
+  // the provider level, which is always mounted whenever voice state exists.
+  // Merges onto whatever's already on disk (falling back to defaultPlacement
+  // if it's missing/invalid) so anchor/size/docked survive untouched.
+  useEffect(() => {
+    if (persistedCollapsedRef.current === state.pipCollapsed) return;
+    persistedCollapsedRef.current = state.pipCollapsed;
+    const saved = getCachedItem<unknown>(PIP_PLACEMENT_KEY);
+    const base = saved && typeof saved === 'object' ? saved as Record<string, unknown> : defaultPlacement();
+    setCachedItem(PIP_PLACEMENT_KEY, { ...base, collapsed: state.pipCollapsed });
+  }, [state.pipCollapsed]);
 
   // Memoize dispatch context value so consumers (like RoomProvider) that only
   // need dispatch/stateRef don't re-render on every VoiceState change.

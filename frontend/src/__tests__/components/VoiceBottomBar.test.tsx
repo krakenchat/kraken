@@ -566,6 +566,22 @@ describe('VoiceBottomBar', () => {
       expect(mockActions.revealVideoTiles).toHaveBeenCalled();
       expect(mockActions.setPipCollapsed).not.toHaveBeenCalled();
     });
+
+    it('hides the video-tiles menu item entirely while the embedded stage is mounted (toggling pip state would have no visible effect)', async () => {
+      voiceState = { ...defaultVoiceState, showVideoTiles: true, pipCollapsed: false, stageMounted: true };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: voiceState,
+        actions: mockActions,
+      } as never);
+
+      const { user } = renderWithProviders(<VoiceBottomBar />);
+      await openSettingsMenu(user);
+
+      expect(screen.queryByText('Hide Video Tiles')).not.toBeInTheDocument();
+      expect(screen.queryByText('Show Video Tiles')).not.toBeInTheDocument();
+      // The rest of the menu is unaffected.
+      expect(screen.getByText('Voice & Video Settings')).toBeInTheDocument();
+    });
   });
 
   describe('speakerphone toggle (#109)', () => {
