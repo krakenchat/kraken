@@ -62,6 +62,7 @@ function createVoiceState(overrides: Partial<VoiceState> = {}): VoiceState {
     watchingCameras: new Set<string>(),
     watchingScreenShares: new Set<string>(),
     hiddenLocalTiles: new Set<string>(),
+    stageMounted: false,
     ...overrides,
   };
 }

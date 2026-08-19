@@ -161,6 +161,7 @@ function createMockDeps(overrides: Partial<{
       watchingCameras: new Set<string>(),
       watchingScreenShares: new Set<string>(),
       hiddenLocalTiles: new Set<string>(),
+      stageMounted: false,
     }),
     getRoom: () => room as Room | null,
     setRoom: vi.fn(),

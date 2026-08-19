@@ -53,6 +53,7 @@ const defaultVoiceState: VoiceState & { room: null } = {
   watchingCameras: new Set<string>(),
   watchingScreenShares: new Set<string>(),
   hiddenLocalTiles: new Set<string>(),
+  stageMounted: false,
   room: null,
 };
 
