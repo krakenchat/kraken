@@ -1118,6 +1118,16 @@ app.whenReady().then(() => {
   // on the process that just launched (rather than a second-instance
   // relaunch). The renderer isn't ready yet, so this queues.
   extractDeepLinkUrls(process.argv).forEach(handleDeepLinkUrl);
+
+  // CI smoke test (electron-build.yml): print a readiness marker and exit.
+  // CI must assert this positive signal rather than process liveness — an
+  // uncaught main-process exception leaves the process alive behind
+  // Electron's error dialog (how the v0.4.0-v0.4.2 Windows startup crash
+  // shipped despite green builds).
+  if (process.env.ELECTRON_SMOKE === '1') {
+    console.log('ELECTRON_SMOKE_OK');
+    app.exit(0);
+  }
 });
 
 // Tray keeps the app alive — don't quit when windows are hidden
