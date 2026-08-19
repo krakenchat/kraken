@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] - 2026-08-19
+
+### Fixed
+
+- **Windows Desktop App Crash on Launch** — Every Windows build of v0.4.0–v0.4.2 crashed at startup with `Invalid package config ...app.asar\electron\dist\package.json` (no window, orphaned background processes). The `build-electron` script wrote `electron/dist/package.json` with a shell `echo` under single quotes; on the Windows CI runner the script shell is cmd.exe, which treats single quotes as literal characters, so the shipped file was not valid JSON and Electron's module resolver threw before any app code ran. The file (and the `.cjs` renames) are now written by Node itself (`fs.writeFileSync`/`renameSync` + `JSON.stringify`), which is shell-independent, and `build:all` now fails the build if the emitted artifacts are missing or unparseable. **Note for Windows users on 0.4.0–0.4.2**: the app crashes before the auto-updater can run, so this one update must be installed manually — download and run the 0.4.3 installer (it closes the broken instances itself). Auto-update works again from then on. Windows users still on 0.3.x auto-update normally; Linux builds were never affected.
+
 ## [0.4.2] - 2026-08-18
 
 ### Changed

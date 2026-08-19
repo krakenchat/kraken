@@ -18,9 +18,10 @@
   "scripts": {
     "clean": "rimraf dist electron/dist release",
     "build": "vite build",
-    "build-electron": "tsc --project electron/tsconfig.electron.json && mv electron/dist/main.js electron/dist/main.cjs && echo '{\"type\":\"commonjs\"}' > electron/dist/package.json",
-    "build-preload": "tsc electron/preload.ts --outDir electron/dist --module commonjs --target es2020 --esModuleInterop --skipLibCheck && mv electron/dist/preload.js electron/dist/preload.cjs",
-    "build:all": "pnpm run clean && pnpm run build && pnpm run build-electron && pnpm run build-preload",
+    "build-electron": "tsc --project electron/tsconfig.electron.json && node -e \"const fs=require('fs');fs.renameSync('electron/dist/main.js','electron/dist/main.cjs');fs.writeFileSync('electron/dist/package.json',JSON.stringify({type:'commonjs'}))\"",
+    "build-preload": "tsc electron/preload.ts --outDir electron/dist --module commonjs --target es2020 --esModuleInterop --skipLibCheck && node -e \"require('fs').renameSync('electron/dist/preload.js','electron/dist/preload.cjs')\"",
+    "build:all": "pnpm run clean && pnpm run build && pnpm run build-electron && pnpm run build-preload && pnpm run verify-electron-build",
+    "verify-electron-build": "node -e \"const fs=require('fs');JSON.parse(fs.readFileSync('electron/dist/package.json','utf8'));for(const f of ['main.cjs','preload.cjs','package.json'])if(!fs.existsSync('electron/dist/'+f))throw new Error('missing electron/dist/'+f);console.log('electron build artifacts OK')\"",
     "build:renderer": "vite build",
     "package": "pnpm run build:all && electron-builder --dir",
     "build:win": "pnpm run build:all && electron-builder --win",
