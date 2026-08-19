@@ -2,12 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../test-utils';
 import { PersistentVideoOverlay } from '../../components/Voice/PersistentVideoOverlay';
+import { VoiceSessionType } from '../../contexts/VoiceContext';
+import { getCachedItem, setCachedItem } from '../../utils/storage';
 
 vi.mock('../../api-client/client.gen', async (importOriginal) => {
   const { createClient, createConfig } = await import('../../api-client/client');
   return {
     ...(await importOriginal<Record<string, unknown>>()),
     client: createClient(createConfig({ baseUrl: 'http://localhost:3000' })),
+  };
+});
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
   };
 });
 
@@ -27,6 +38,17 @@ const mockActions = {
   switchAudioOutputDevice: vi.fn(),
 };
 
+// --- Mock room ---
+const mockLocalParticipant = { identity: 'local-user', name: 'Local User' };
+let mockRemoteParticipants = new Map<string, unknown>();
+const mockRoom = {
+  localParticipant: mockLocalParticipant,
+  get remoteParticipants() {
+    return mockRemoteParticipants;
+  },
+};
+
+// State backing useVoice() — the gate fields PersistentVideoOverlay itself reads.
 const defaultVoiceState = {
   isConnected: true,
   channelName: 'General Voice',
@@ -35,7 +57,6 @@ const defaultVoiceState = {
   stageMounted: false,
   dmGroupName: null,
 };
-
 let mockVoiceState = { ...defaultVoiceState };
 const mockDispatch = vi.fn();
 
@@ -48,9 +69,33 @@ vi.mock('../../contexts/VoiceContext', async (importOriginal) => {
   };
 });
 
+// State backing useVoiceConnection() — what FloatCard actually consumes.
+const defaultConnectionState: {
+  isConnected: boolean;
+  contextType: VoiceSessionType;
+  communityId: string | null;
+  currentChannelId: string | null;
+  channelName: string | null;
+  currentDmGroupId: string | null;
+  dmGroupName: string | null;
+  stageMounted: boolean;
+  room: typeof mockRoom;
+} = {
+  isConnected: true,
+  contextType: VoiceSessionType.Channel,
+  communityId: 'community-1',
+  currentChannelId: 'channel-1',
+  channelName: 'General Voice',
+  currentDmGroupId: null,
+  dmGroupName: null,
+  stageMounted: false,
+  room: mockRoom,
+};
+let mockConnectionState = { ...defaultConnectionState };
+
 vi.mock('../../hooks/useVoiceConnection', () => ({
   useVoiceConnection: vi.fn(() => ({
-    state: mockVoiceState,
+    state: mockConnectionState,
     actions: mockActions,
   })),
 }));
@@ -65,19 +110,68 @@ vi.mock('../../hooks/useResponsive', () => ({
   })),
 }));
 
-// Mock VideoTiles to avoid complex setup
+vi.mock('../../hooks/useLocalMediaState', () => ({
+  useLocalMediaState: vi.fn(() => ({
+    isCameraEnabled: false,
+    isMicrophoneEnabled: true,
+    isScreenShareEnabled: false,
+  })),
+}));
+
+vi.mock('../../contexts/ReplayBufferContext', () => ({
+  useReplayBufferState: vi.fn(() => ({ isReplayBufferActive: false })),
+}));
+
+// Selection defaults to the avatar fallback — camera/screen kinds are
+// exercised indirectly through useFloatTileSelection.test.ts's pure-function
+// coverage; here we only need FloatCard's own click/control/badge wiring.
+let mockSelection: unknown = { kind: 'avatar', participant: mockLocalParticipant };
+vi.mock('../../hooks/useFloatTileSelection', () => ({
+  useFloatTileSelection: vi.fn(() => mockSelection),
+}));
+
+// Mock VideoTiles to avoid complex setup (mobile branch)
 vi.mock('../../components/Voice/VideoTiles', () => ({
   VideoTiles: () => <div data-testid="video-tiles">Video Tiles</div>,
 }));
 
+vi.mock('../../components/Voice/VideoTile', () => ({
+  default: ({ participant, videoTrack, screenTrack, isLocal }: {
+    participant?: { identity: string };
+    videoTrack?: unknown;
+    screenTrack?: unknown;
+    isLocal?: boolean;
+  }) => (
+    <div
+      data-testid="video-tile"
+      data-identity={participant?.identity}
+      data-kind={videoTrack ? 'camera' : screenTrack ? 'screen' : 'none'}
+      data-local={isLocal ? 'true' : 'false'}
+    />
+  ),
+}));
+
+vi.mock('../../components/Common/UserAvatar', () => ({
+  default: ({ userId }: { userId?: string }) => <div data-testid="user-avatar" data-user-id={userId} />,
+}));
+
 const { useVoice } = await import('../../contexts/VoiceContext');
 const { useResponsive } = await import('../../hooks/useResponsive');
+const { useVoiceConnection } = await import('../../hooks/useVoiceConnection');
 
 describe('PersistentVideoOverlay', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    mockRemoteParticipants = new Map();
+    mockSelection = { kind: 'avatar', participant: mockLocalParticipant };
     mockVoiceState = { ...defaultVoiceState };
+    mockConnectionState = { ...defaultConnectionState, room: mockRoom };
     vi.mocked(useVoice).mockReturnValue(mockVoiceState as never);
+    vi.mocked(useVoiceConnection).mockReturnValue({
+      state: mockConnectionState,
+      actions: mockActions,
+    } as never);
     vi.mocked(useResponsive).mockReturnValue({
       isMobile: false,
       isTablet: false,
@@ -103,14 +197,12 @@ describe('PersistentVideoOverlay', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders VideoTiles on desktop', () => {
-    renderWithProviders(<PersistentVideoOverlay />);
-    expect(screen.getByTestId('video-tiles')).toBeInTheDocument();
-  });
+  it('returns null on desktop when the embedded stage is mounted', () => {
+    mockVoiceState = { ...defaultVoiceState, stageMounted: true };
+    vi.mocked(useVoice).mockReturnValue(mockVoiceState as never);
 
-  it('renders channel name in PiP header on desktop', () => {
-    renderWithProviders(<PersistentVideoOverlay />);
-    expect(screen.getByText('General Voice')).toBeInTheDocument();
+    const { container } = renderWithProviders(<PersistentVideoOverlay />);
+    expect(container.innerHTML).toBe('');
   });
 
   it('renders mobile full-screen overlay on mobile', () => {
@@ -126,7 +218,7 @@ describe('PersistentVideoOverlay', () => {
 
     // Mobile overlay should render VideoTiles
     expect(screen.getByTestId('video-tiles')).toBeInTheDocument();
-    // Mobile overlay should NOT have minimize/maximize/drag controls
+    // Mobile overlay should NOT have the float card's drag/minimize chrome
     expect(screen.queryByTestId('DragIndicatorIcon')).not.toBeInTheDocument();
     expect(screen.queryByTestId('MinimizeIcon')).not.toBeInTheDocument();
   });
@@ -142,35 +234,11 @@ describe('PersistentVideoOverlay', () => {
 
     const { user } = renderWithProviders(<PersistentVideoOverlay />);
 
-    // The close button has a CloseIcon
     const closeIcon = screen.getByTestId('CloseIcon');
     const closeButton = closeIcon.closest('button')!;
     await user.click(closeButton);
 
     expect(mockActions.setShowVideoTiles).toHaveBeenCalledWith(false);
-  });
-
-  it('desktop PiP has minimize and close buttons', () => {
-    renderWithProviders(<PersistentVideoOverlay />);
-
-    expect(screen.getByTestId('MinimizeIcon')).toBeInTheDocument();
-    expect(screen.getByTestId('CloseIcon')).toBeInTheDocument();
-    expect(screen.queryByTestId('FullscreenIcon')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('FullscreenExitIcon')).not.toBeInTheDocument();
-  });
-
-  it('desktop PiP has drag indicator', () => {
-    renderWithProviders(<PersistentVideoOverlay />);
-
-    expect(screen.getByTestId('DragIndicatorIcon')).toBeInTheDocument();
-  });
-
-  it('returns null on desktop when the embedded stage is mounted', () => {
-    mockVoiceState = { ...defaultVoiceState, stageMounted: true };
-    vi.mocked(useVoice).mockReturnValue(mockVoiceState as never);
-
-    const { container } = renderWithProviders(<PersistentVideoOverlay />);
-    expect(container.innerHTML).toBe('');
   });
 
   it('still renders the mobile overlay when the embedded stage is mounted', () => {
@@ -187,5 +255,140 @@ describe('PersistentVideoOverlay', () => {
     renderWithProviders(<PersistentVideoOverlay />);
 
     expect(screen.getByTestId('video-tiles')).toBeInTheDocument();
+  });
+
+  describe('desktop float card', () => {
+    it('renders the drag header with the channel name', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      expect(screen.getByTestId('DragIndicatorIcon')).toBeInTheDocument();
+      expect(screen.getByText('General Voice')).toBeInTheDocument();
+    });
+
+    it('no longer has a close button (replaced by collapse-to-pill)', () => {
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      expect(screen.queryByTestId('CloseIcon')).not.toBeInTheDocument();
+      expect(screen.getByTestId('MinimizeIcon')).toBeInTheDocument();
+    });
+
+    it('clicking the card body navigates to the channel stage path', async () => {
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      await user.click(screen.getByTestId('float-card-body'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/community/community-1/channel/channel-1');
+    });
+
+    it('clicking the card body navigates to the DM deep link for DM sessions', async () => {
+      mockConnectionState = {
+        ...defaultConnectionState,
+        contextType: VoiceSessionType.Dm,
+        communityId: null,
+        currentChannelId: null,
+        channelName: null,
+        currentDmGroupId: 'dm-group-1',
+        dmGroupName: 'Friends',
+        room: mockRoom,
+      };
+      vi.mocked(useVoiceConnection).mockReturnValue({
+        state: mockConnectionState,
+        actions: mockActions,
+      } as never);
+
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      await user.click(screen.getByTestId('float-card-body'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('/direct-messages?group=dm-group-1');
+    });
+
+    it('clicks on the control strip do not navigate', async () => {
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      const micIcon = screen.getByTestId('MicIcon');
+      await user.click(micIcon.closest('button')!);
+
+      expect(mockActions.toggleMute).toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('camera control in the strip toggles the camera without navigating', async () => {
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      const camIcon = screen.getByTestId('VideocamOffIcon');
+      await user.click(camIcon.closest('button')!);
+
+      expect(mockActions.toggleVideo).toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('shows a participant-count badge on the collapsed pill', () => {
+      mockRemoteParticipants = new Map([
+        ['remote-1', { identity: 'remote-1' }],
+        ['remote-2', { identity: 'remote-2' }],
+      ]);
+      setCachedItem('semaphore_pip_settings', {
+        position: { x: 0, y: 0 },
+        size: { width: 480, height: 360 },
+        isMinimized: true,
+      });
+
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      expect(screen.getByTestId('float-card-pill')).toBeInTheDocument();
+      // 2 remote participants + local participant
+      expect(screen.getByText('3')).toBeInTheDocument();
+    });
+
+    it('collapse control shows the pill', async () => {
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      expect(screen.queryByTestId('float-card-pill')).not.toBeInTheDocument();
+
+      const minimizeIcon = screen.getByTestId('MinimizeIcon');
+      await user.click(minimizeIcon.closest('button')!);
+
+      expect(screen.getByTestId('float-card-pill')).toBeInTheDocument();
+      expect(getCachedItem<{ isMinimized: boolean }>('semaphore_pip_settings')?.isMinimized).toBe(true);
+    });
+
+    it('renders VideoTile for a camera selection', () => {
+      const camParticipant = { identity: 'remote-1', name: 'RemoteUser' };
+      mockSelection = { kind: 'camera', participant: camParticipant, publication: { source: 'camera' } };
+
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const tile = screen.getByTestId('video-tile');
+      expect(tile).toHaveAttribute('data-identity', 'remote-1');
+      expect(tile).toHaveAttribute('data-kind', 'camera');
+      expect(tile).toHaveAttribute('data-local', 'false');
+    });
+
+    it('renders VideoTile for a screen-share selection', () => {
+      const sharer = { identity: 'remote-2', name: 'Sharer' };
+      mockSelection = { kind: 'screen', participant: sharer, publication: { source: 'screen_share' } };
+
+      renderWithProviders(<PersistentVideoOverlay />);
+
+      const tile = screen.getByTestId('video-tile');
+      expect(tile).toHaveAttribute('data-identity', 'remote-2');
+      expect(tile).toHaveAttribute('data-kind', 'screen');
+    });
+
+    it('clicking the pill expands back to the full card', async () => {
+      setCachedItem('semaphore_pip_settings', {
+        position: { x: 0, y: 0 },
+        size: { width: 480, height: 360 },
+        isMinimized: true,
+      });
+
+      const { user } = renderWithProviders(<PersistentVideoOverlay />);
+
+      await user.click(screen.getByTestId('float-card-pill'));
+
+      expect(screen.queryByTestId('float-card-pill')).not.toBeInTheDocument();
+      expect(screen.getByTestId('float-card-body')).toBeInTheDocument();
+    });
   });
 });
