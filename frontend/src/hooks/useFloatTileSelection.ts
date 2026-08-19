@@ -144,6 +144,10 @@ export function useFloatTileSelection(): FloatTileSelection | null {
     room.on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged);
     room.on(RoomEvent.TrackSubscribed, handleTrackChange);
     room.on(RoomEvent.TrackUnsubscribed, handleTrackChange);
+    room.on(RoomEvent.TrackMuted, handleTrackChange);
+    room.on(RoomEvent.TrackUnmuted, handleTrackChange);
+    room.on(RoomEvent.LocalTrackPublished, handleTrackChange);
+    room.on(RoomEvent.LocalTrackUnpublished, handleTrackChange);
     room.on(RoomEvent.ParticipantConnected, handleTrackChange);
     room.on(RoomEvent.ParticipantDisconnected, handleTrackChange);
 
@@ -151,6 +155,10 @@ export function useFloatTileSelection(): FloatTileSelection | null {
       room.off(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakersChanged);
       room.off(RoomEvent.TrackSubscribed, handleTrackChange);
       room.off(RoomEvent.TrackUnsubscribed, handleTrackChange);
+      room.off(RoomEvent.TrackMuted, handleTrackChange);
+      room.off(RoomEvent.TrackUnmuted, handleTrackChange);
+      room.off(RoomEvent.LocalTrackPublished, handleTrackChange);
+      room.off(RoomEvent.LocalTrackUnpublished, handleTrackChange);
       room.off(RoomEvent.ParticipantConnected, handleTrackChange);
       room.off(RoomEvent.ParticipantDisconnected, handleTrackChange);
     };
